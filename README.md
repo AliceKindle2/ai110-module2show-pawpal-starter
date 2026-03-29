@@ -41,3 +41,10 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+
+### Smarter Scheduling 
+
+Tasks now spawns a new successor from daily and weekly tasks, inheriting certain traits but making task id, create_at, and due_date. 
+
+Schedular has filter tasks feature, sorting featurem conflict detection feature, recurrence wiring, and demo coverage to help with handling tasks and making a demo for the system. 
