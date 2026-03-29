@@ -37,8 +37,9 @@ class Status(Enum):
 # State-transition table (used by Task)
 # ---------------------------------------------------------------------------
 
+
 _ALLOWED_TRANSITIONS: dict[Status, set[Status]] = {
-    Status.PENDING:     {Status.IN_PROGRESS, Status.SKIPPED},
+    Status.PENDING:     {Status.IN_PROGRESS, Status.DONE, Status.SKIPPED},  # added DONE
     Status.IN_PROGRESS: {Status.DONE, Status.SKIPPED},
     Status.DONE:        set(),
     Status.SKIPPED:     set(),

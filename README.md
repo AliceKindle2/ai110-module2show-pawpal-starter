@@ -47,4 +47,10 @@ pip install -r requirements.txt
 
 Tasks now spawns a new successor from daily and weekly tasks, inheriting certain traits but making task id, create_at, and due_date. 
 
-Schedular has filter tasks feature, sorting featurem conflict detection feature, recurrence wiring, and demo coverage to help with handling tasks and making a demo for the system. 
+Schedular has filter tasks feature, sorting feature, conflict detection feature, recurrence wiring, and demo coverage to help with handling tasks and making a demo for the system. 
+
+### Testing PawPal+
+
+I used python -m pytest to run all 17 tests for pawpal_system.py. Those tests cover over the task system, making sure they are working correctly like show as pending, not being skipped over, and being set as completed. There are other tests regarding adding tasks for each pet, setting the tasks in chronological order, recurring tasks such as daily and weekly tasks, and finally testing tasks that conflict with each other. 
+
+Base on my observation of the system and testing it, I would say my confidence level in the system is four stars in the system's reliability based on my test results. While they have had all passed, there was still some struggles in the initial tests Claude has given to me and I had to fix the _ALLOWED_TRANSITIONS section for all of the tests to pass.

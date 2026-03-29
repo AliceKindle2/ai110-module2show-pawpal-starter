@@ -5,8 +5,9 @@ Run with: python -m pytest test_pawpal.py -v
 """
 
 import pytest
+from datetime import date, time, timedelta
 
-from pawpal_system import Frequency, Pet, Status, Task
+from pawpal_system import Frequency, Owner, Pet, Scheduler, Status, Task
 
 
 # ---------------------------------------------------------------------------
@@ -29,6 +30,15 @@ def basic_task() -> Task:
 def basic_pet() -> Pet:
     """A pet with no tasks attached."""
     return Pet("Bella", species="dog", breed="Golden Retriever", age=3.0)
+
+
+@pytest.fixture
+def owner_with_pet() -> tuple[Owner, Pet]:
+    """An Owner with one Pet already registered."""
+    owner = Owner("Alice")
+    pet = Pet("Rex", "dog", age=3)
+    owner.add_pet(pet)
+    return owner, pet
 
 
 # ---------------------------------------------------------------------------
@@ -123,3 +133,97 @@ class TestTaskAddition:
         with pytest.raises(ValueError):
             basic_pet.add_task(basic_task)
         assert len(basic_pet.all_tasks()) == 1
+
+
+# ---------------------------------------------------------------------------
+# Sorting correctness
+# ---------------------------------------------------------------------------
+
+class TestSortingCorrectness:
+
+    def test_tasks_returned_in_chronological_order(self, owner_with_pet: tuple[Owner, Pet]) -> None:
+        """Tasks added out of order should be sorted ascending by scheduled_time."""
+        owner, pet = owner_with_pet
+        today = date.today()
+
+        # scheduled_time hours 1, 2, 3 give a clear chronological order to assert against
+        for days, name in [(3, "Feed Rex"), (1, "Vet checkup"), (2, "Bath time")]:
+            pet.add_task(Task(
+                name, "", 10, 1,
+                scheduled_time=time(days, 0),
+                due_date=today + timedelta(days=days),
+            ))
+
+        scheduler = Scheduler(owner)
+        sorted_tasks = scheduler.generate_schedule()
+        times = [t.scheduled_time for t in sorted_tasks]
+
+        assert times == sorted(times), (
+            f"Expected chronological order, got: {times}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Recurrence logic
+# ---------------------------------------------------------------------------
+
+class TestRecurrenceLogic:
+
+    def test_completing_daily_task_creates_next_day_task(
+        self, owner_with_pet: tuple[Owner, Pet]
+    ) -> None:
+        """Advancing a daily task to DONE should spawn a new PENDING task for due_date + 1."""
+        owner, pet = owner_with_pet
+        today = date.today()
+
+        task = Task(
+            "Morning walk", "", 30, 3,
+            frequency=Frequency.DAILY,
+            due_date=today,
+        )
+        pet.add_task(task)
+
+        scheduler = Scheduler(owner)
+        scheduler.generate_schedule()
+
+        scheduler.advance(task.task_id)  # PENDING → IN_PROGRESS
+        scheduler.advance(task.task_id)  # IN_PROGRESS → DONE, spawns successor
+
+        pending = pet.pending_tasks()
+        assert any(t.name == "Morning walk" for t in pending), (
+            "Recurring task title should reappear after completion."
+        )
+        assert any(t.due_date == today + timedelta(days=1) for t in pending), (
+            f"Expected successor on {today + timedelta(days=1)}, "
+            f"got: {[t.due_date for t in pending]}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Conflict detection
+# ---------------------------------------------------------------------------
+
+class TestConflictDetection:
+
+    def test_duplicate_time_flags_conflict(
+        self, owner_with_pet: tuple[Owner, Pet]
+    ) -> None:
+        """Two tasks for the same pet at the same scheduled_time should be flagged as a conflict."""
+        owner, pet = owner_with_pet
+        feed_time = time(8, 0)
+        today = date.today()
+
+        pet.add_task(Task("Feed Bella", "", 10, 2, scheduled_time=feed_time, due_date=today))
+        pet.add_task(Task("Give meds",  "",  5, 2, scheduled_time=feed_time, due_date=today))
+
+        scheduler = Scheduler(owner)
+        scheduler.generate_schedule()
+
+        conflicts = scheduler.detect_conflicts()
+
+        assert len(conflicts) == 1, (
+            f"Expected 1 conflict, got {len(conflicts)}"
+        )
+        assert conflicts[0].time_str == "08:00", (
+            f"Expected conflict at 08:00, got: {conflicts[0].time_str}"
+        )
